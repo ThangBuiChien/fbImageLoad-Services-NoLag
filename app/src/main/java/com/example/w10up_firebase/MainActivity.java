@@ -2,6 +2,7 @@ package com.example.w10up_firebase;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -42,35 +43,9 @@ public class MainActivity extends AppCompatActivity {
     public static final String ACTION_DATA_LOADED = "com.example.w10up_firebase.DATA_LOADED";
 
 
-//    private BroadcastReceiver dataReceiver = new BroadcastReceiver() {
-//        @Override
-//        public void onReceive(Context context, Intent intent) {
-//            if (intent.getAction().equals(ACTION_DATA_LOADED)) {
-//
-//                List<DataClass> temp = intent.getParcelableArrayListExtra("dataList");
-//                // Do whatever you want with the dataList received
-//                if(temp!=null) {
-//                    dataList.addAll(temp);
-//                }
-//            }
-//            adapter.notifyDataSetChanged();
-//
-//        }
-//    };
 
-    private BroadcastReceiver dataReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (intent.getAction().equals(ACTION_DATA_LOADED)) {
-                // Retrieve the message from the intent
-                String message = intent.getStringExtra("message");
-
-                // Log the message to verify
-                Log.d("BroadcastReceiver", "Received message: " + message);
-            }
-        }
-    };
-
+    private int totalPictures = 50; // Total number of pictures to load
+    private int picturesLoaded = 0; // Counter to keep track of pictures loaded
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,30 +60,14 @@ public class MainActivity extends AppCompatActivity {
         gridView.setAdapter(adapter);
 
         Intent serviceIntent = new Intent(this, FirebaseLoadService.class);
+        serviceIntent.putExtra("lastKnownKey", lastKnownKey);
         startService(serviceIntent);
 
 
-       // Query firstQuery = databaseReference.orderByKey().limitToFirst(3);
 
 
-//        firstQuery.addValueEventListener(new ValueEventListener() {
-//            @Override
-//            public void onDataChange(@NonNull DataSnapshot snapshot) {
-//                for (DataSnapshot dataSnapshot : snapshot.getChildren()) {
-//                    DataClass dataClass = dataSnapshot.getValue(DataClass.class);
-//                    dataList.add(dataClass);
-//                }
-//                adapter.notifyDataSetChanged();
-//            }
-//
-//            @Override
-//            public void onCancelled(@NonNull DatabaseError error) {
-//
-//            }
-//        });
 
 
-     //   loadInitialItems();
 
 
 
@@ -121,83 +80,62 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        IntentFilter filter = new IntentFilter(ACTION_DATA_LOADED);
+        LocalBroadcastManager.getInstance(this).registerReceiver(dataLoadedReceiver, filter);
+
         // Method to set up the next query
 
     }
-//    @Override
-//    protected void onResume() {
-//        super.onResume();
-//        IntentFilter filter = new IntentFilter(ACTION_DATA_LOADED);
-//        registerReceiver(dataReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-//
-//    }
-//
-//    @Override
-//    protected void onPause() {
-//        super.onPause();
-//        unregisterReceiver(dataReceiver);
-//    }
 
-
-    private void loadInitialItems() {
-        Query firstQuery = databaseReference.orderByKey().limitToFirst(maxLoad+1);
-
-        firstQuery.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                for (DataSnapshot dataSnapshot : snapshot.getChildren()) {
-                    DataClass dataClass = dataSnapshot.getValue(DataClass.class);
-                    if (dataClass != null) {
-                        dataList.add(dataClass);
-                        lastKnownKey = dataSnapshot.getKey();
-                    }
-                }
-                if (!dataList.isEmpty()) {
-                    dataList.remove(dataList.size() - 1);
-                }
-
-                adapter.notifyDataSetChanged();
-
-                new Handler().postDelayed(() -> {
-                    // Load next items based on the last known key
-                    loadNextItems();
-                }, 2000); // Delay in milliseconds (2000 ms = 2 seconds)
-
-                // Load next items based on the last known key
-               // loadNextItems();
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                // Handle error
-            }
-        });
-    }
-
-    private void loadNextItems() {
-        if (lastKnownKey != null) {
-            Query nextQuery = databaseReference.orderByKey().startAt(lastKnownKey).limitToFirst(maxLoad+1);
-            nextQuery.addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot snapshot) {
-                    for (DataSnapshot dataSnapshot : snapshot.getChildren()) {
-                        DataClass dataClass = dataSnapshot.getValue(DataClass.class);
-                        if (dataClass != null) {
-                            dataList.add(dataClass);
-                            lastKnownKey = dataSnapshot.getKey();
-                        }
-                    }
-                    if (!dataList.isEmpty()) {
-                        dataList.remove(dataList.size() - 1);
-                    }
+    private BroadcastReceiver dataLoadedReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+//            if (intent.getAction().equals(ACTION_DATA_LOADED)) {
+//                ArrayList<DataClass> receivedDataList = intent.getParcelableArrayListExtra("dataList");
+//                lastKnownKey = intent.getStringExtra("lastKnownKey");
+//                if (receivedDataList != null) {
+//                    dataList.clear();
+//                    dataList.addAll(receivedDataList);
+//                    adapter.notifyDataSetChanged();
+//                }
+//            }
+            if (intent.getAction().equals(ACTION_DATA_LOADED)) {
+                ArrayList<DataClass> receivedDataList = intent.getParcelableArrayListExtra("dataList");
+                String receivedLastKnownKey = intent.getStringExtra("lastKnownKey");
+                lastKnownKey = receivedLastKnownKey;
+                if (receivedDataList != null) {
+                    dataList.addAll(receivedDataList);
                     adapter.notifyDataSetChanged();
                 }
+                picturesLoaded += 2; // Increment the counter by 2 since each service loads 2 pictures
 
-                @Override
-                public void onCancelled(@NonNull DatabaseError error) {
-                    // Handle error
+                // Check if all pictures are loaded
+                if (picturesLoaded < totalPictures) {
+                    // If not, start loading the next set of pictures
+                    loadPictures();
                 }
-            });
+            }
         }
+    };
+
+
+    // Unregister the BroadcastReceiver in onDestroy method to avoid memory leaks
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(dataLoadedReceiver);
     }
+
+    private void loadPictures() {
+        // Start the service to load pictures
+        Intent serviceIntent = new Intent(this, FirebaseLoadService.class);
+        serviceIntent.putExtra("lastKnownKey", lastKnownKey);
+        startService(serviceIntent);
+    }
+
+
+
+
+
+
 }

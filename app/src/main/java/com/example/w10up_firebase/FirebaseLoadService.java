@@ -1,5 +1,7 @@
 package com.example.w10up_firebase;
 
+import static android.content.Intent.getIntent;
+
 import android.app.IntentService;
 import android.content.Intent;
 import android.os.Parcelable;
@@ -36,11 +38,16 @@ public class FirebaseLoadService extends IntentService {
         super.onCreate();
         databaseReference = FirebaseDatabase.getInstance().getReference("Images");
         dataList = new ArrayList<>();
-        lastKnownKey = null;
+      //  lastKnownKey = getIntent().getStringExtra("lastKnownKey");
     }
 
     @Override
     protected void onHandleIntent(@Nullable Intent intent) {
+        if (intent != null) {
+            lastKnownKey = intent.getStringExtra("lastKnownKey");
+            // Use the lastKnownKey here in your query
+           // loadItems(lastKnownKey);
+        }
         loadItems();
     }
 
@@ -68,23 +75,10 @@ public class FirebaseLoadService extends IntentService {
                     dataList.remove(dataList.size() - 1);
                 }
 
-//                Intent broadcastIntent = new Intent(MainActivity.ACTION_DATA_LOADED);
-//                broadcastIntent.putParcelableArrayListExtra("dataList", (ArrayList<DataClass>) dataList);
-//                sendBroadcast(broadcastIntent);
-
-                // Prepare a simple message
-                String message = "Broadcast received successfully!";
-
-                // Create an intent with the broadcast action
-                Intent broadcastIntent = new Intent(MainActivity.ACTION_DATA_LOADED);
-
-                // Put the message as an extra in the intent
-                broadcastIntent.putExtra("message", message);
-
-                // Send the broadcast
-                sendBroadcast(broadcastIntent);
-
-
+                Intent intent = new Intent(MainActivity.ACTION_DATA_LOADED);
+                intent.putParcelableArrayListExtra("dataList", (ArrayList<? extends Parcelable>) dataList);
+                intent.putExtra("lastKnownKey", lastKnownKey);
+                LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
 
 
             }
