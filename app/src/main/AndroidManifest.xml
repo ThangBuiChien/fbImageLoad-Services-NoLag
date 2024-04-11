@@ -17,7 +17,8 @@
         android:theme="@style/Theme.W10Up_firebase"
         tools:targetApi="31">
 
-        <service android:name=".DownloadService" />
+        <service android:name=".FirebaseLoadService" />
+
 
         <activity
             android:name=".UploadActivity"
@@ -32,6 +33,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver android:name=".FirebaseLoadService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.w10up_firebase.DATA_LOADED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>
